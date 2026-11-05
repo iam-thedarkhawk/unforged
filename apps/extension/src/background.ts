@@ -2,8 +2,9 @@
 // applies the result (extension.md "Background: enforcement"). Also answers the UI's messages.
 import type { Blocked, TabState, Verdict } from "@unforged/core";
 import snapshotJson from "../fixtures/snapshot.json";
-import { classify } from "./classify.js";
+import { classify, originOf } from "./classify.js";
 import { decide, newTab, type Snapshot, type TabRecord } from "./decide.js";
+import { keepsTabState, showsBlockedPage } from "./navigation.js";
 import { snapshotSummary } from "./summary.js";
 
 // Bundled fixture until M9 replaces it with the snapshot synced from Arkiv.
@@ -12,19 +13,26 @@ const policyOrigins = Object.values(snapshot.dapps).flatMap((d) => d.policy.orig
 
 const BLOCKED_BODY_LIMIT = 200 * 1024;
 const SCRIPT_TYPES = new Set(["script", "worker", "xmlhttprequest"]);
+const BLOCKED_PAGE = browser.runtime.getURL("blocked.html");
 
 interface Tab {
   origin: string | undefined;
   record: TabRecord;
   blockedBodies: Map<string, string>; // url -> first 200 KB of a blocked script, memory only
+  documentPending: boolean; // a policy document is loading and hasn't committed yet
+  blockedPageShown: boolean; // this page load already went to the blocked page
 }
 
 const tabs = new Map<number, Tab>();
 
+function newTabEntry(origin: string | undefined): Tab {
+  return { origin, record: newTab(), blockedBodies: new Map(), documentPending: false, blockedPageShown: false };
+}
+
 function tabFor(tabId: number): Tab {
   let tab = tabs.get(tabId);
   if (!tab) {
-    tab = { origin: undefined, record: newTab(), blockedBodies: new Map() };
+    tab = newTabEntry(undefined);
     tabs.set(tabId, tab);
   }
   return tab;
@@ -83,20 +91,28 @@ function keepBlockedBody(tab: Tab, details: browser.webRequest._OnBeforeRequestD
   tab.blockedBodies.set(details.url, text);
 }
 
-async function blockDocument(tabId: number): Promise<void> {
-  await browser.tabs.update(tabId, { url: `${browser.runtime.getURL("blocked.html")}?tab=${tabId}` });
+/**
+ * Takes the tab to the blocked page, once per page load. Skips a tab that has moved on since the
+ * request started, and a page whose own origin isn't the policy origin (say, a site embedding a
+ * policy-origin frame): a block there must not take over the whole tab.
+ */
+async function showBlockedPage(tabId: number, tab: Tab, tabOrigin: string, requestType: string): Promise<void> {
+  if (!showsBlockedPage(requestType) || tab.blockedPageShown) return;
+  if (tabs.get(tabId) !== tab || tab.origin !== tabOrigin) return;
+  tab.blockedPageShown = true;
+  await browser.tabs.update(tabId, { url: `${BLOCKED_PAGE}?tab=${tabId}` });
 }
 
 function filterBody(details: browser.webRequest._OnBeforeRequestDetails, tabOrigin: string): void {
   const filter = browser.webRequest.filterResponseData(details.requestId);
   const chunks: Uint8Array[] = [];
+  const tab = tabFor(details.tabId); // the page this request belongs to, even if the tab moves on
 
   filter.ondata = (event) => {
     chunks.push(new Uint8Array(event.data));
   };
 
   filter.onstop = async () => {
-    const tab = tabFor(details.tabId);
     try {
       const body = concat(chunks);
       const decision = await decide(snapshot, tab.record, { url: details.url, type: details.type, tabOrigin, body });
@@ -108,18 +124,21 @@ function filterBody(details: browser.webRequest._OnBeforeRequestDetails, tabOrig
         console.warn(label, decision.blocked);
         closeEmpty(filter);
         keepBlockedBody(tab, details, body);
-        if (details.type === "main_frame") await blockDocument(details.tabId);
+        await showBlockedPage(details.tabId, tab, tabOrigin, details.type);
       }
     } catch (error) {
       console.error("unforged: blocked, enforcement failed", { url: details.url, error });
       closeEmpty(filter);
     }
-    await showState(details.tabId);
+    if (tabs.get(details.tabId) === tab) await showState(details.tabId);
   };
 
   filter.onerror = () => {
     console.error("unforged: stream filter error", { url: details.url, error: filter.error });
+    if (details.type === "main_frame") tab.documentPending = false;
   };
+
+  if (details.type === "main_frame") tab.documentPending = true;
 }
 
 function onBeforeRequest(
@@ -129,7 +148,7 @@ function onBeforeRequest(
   const { tabOrigin, filter } = classify(details, tabs.get(details.tabId)?.origin, policyOrigins);
   if (details.type === "main_frame") {
     // Top-level navigation resets the tab; decide() fills in the dapp once the document is checked.
-    tabs.set(details.tabId, { origin: tabOrigin, record: newTab(), blockedBodies: new Map() });
+    tabs.set(details.tabId, newTabEntry(tabOrigin));
     void showState(details.tabId);
   }
   if (!filter || !tabOrigin) return {};
@@ -141,6 +160,31 @@ function onBeforeRequest(
     console.error("unforged: blocked, could not filter", { url: details.url, error });
     return { cancel: true };
   }
+}
+
+// ---- Navigation that webRequest doesn't see (about:, file:, extension pages) ----
+
+/** Drops a stale verdict. Keeps the page's own origin, which its frames' scripts classify against. */
+async function resetTab(tabId: number, url: string): Promise<void> {
+  tabs.set(tabId, newTabEntry(originOf(url)));
+  try {
+    await browser.action.setBadgeText({ tabId, text: "" });
+    await browser.storage.session.remove(`tab:${tabId}`);
+  } catch (error) {
+    console.error("unforged: could not clear tab state", { tabId, error });
+  }
+}
+
+function onTabUrlChanged(tabId: number, url: string): void {
+  const tab = tabs.get(tabId);
+  if (keepsTabState(url, policyOrigins, BLOCKED_PAGE)) {
+    if (tab) tab.documentPending = false;
+    return;
+  }
+  // The page being left can still change its URL (pushState) while a policy document loads. That
+  // must not replace the record, or the document's scripts would inherit the wrong origin and
+  // skip verification.
+  if (!tab?.documentPending) void resetTab(tabId, url);
 }
 
 // ---- Messages (extension.md "Messages the background answers") ----
@@ -180,8 +224,9 @@ function onMessage(message: Message, sender: browser.runtime.MessageSender): Pro
 browser.webRequest.onBeforeRequest.addListener(onBeforeRequest, { urls: ["<all_urls>"] }, ["blocking"]);
 browser.runtime.onMessage.addListener(onMessage);
 // Firefox may reset per-tab badges when a page commits; repaint from our state.
-browser.tabs.onUpdated.addListener((tabId, change) => {
-  if (change.status) void showState(tabId);
+browser.tabs.onUpdated.addListener((tabId, change, tab) => {
+  if (change.url) onTabUrlChanged(tabId, change.url);
+  if (change.status && tab.url && keepsTabState(tab.url, policyOrigins, BLOCKED_PAGE)) void showState(tabId);
 });
 browser.tabs.onRemoved.addListener((tabId) => {
   tabs.delete(tabId);

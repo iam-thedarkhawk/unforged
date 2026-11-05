@@ -12,7 +12,10 @@ import {
   shortCommit,
   statusLabel,
 } from "./format.js";
+import { isBlockedPage } from "../navigation.js";
 import { stateSource, type StateSource } from "./source.js";
+
+const BLOCKED_PAGE = browser.runtime.getURL("blocked.html");
 
 function statusLine(level: Verdict["level"] | "error", text: string): HTMLElement {
   const dot = el("span", `dot dot-${level}`);
@@ -61,9 +64,26 @@ function syncLine(summary: SnapshotSummary | undefined): HTMLElement {
   return el("p", "sync", `Last sync: ${when}`);
 }
 
-async function activeTabId(): Promise<number | undefined> {
+async function activeTab(): Promise<browser.tabs.Tab | undefined> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  return tab?.id;
+  return tab;
+}
+
+/** Mock mode carries its fixture over to the blocked page instead of a tab id. */
+function seeDetailsButton(source: StateSource, tab: browser.tabs.Tab | undefined, root: HTMLElement): HTMLElement {
+  const button = el("button", "see-details", "See details");
+  button.type = "button";
+  button.addEventListener("click", () => {
+    const search = source.mock ? location.search : `?tab=${tab?.id}`;
+    const url = `${BLOCKED_PAGE}${search}`;
+    const opening = tab?.id === undefined ? browser.tabs.update({ url }) : browser.tabs.update(tab.id, { url });
+    opening
+      .then(() => {
+        if (!source.mock) window.close();
+      })
+      .catch((error: unknown) => root.append(el("p", "note", `Couldn't open the details: ${String(error)}.`)));
+  });
+  return button;
 }
 
 /** Never fall back to a verdict: if the state can't be read, say so. */
@@ -76,8 +96,8 @@ function showUnavailable(root: HTMLElement, reason: unknown): void {
 }
 
 async function render(source: StateSource, root: HTMLElement): Promise<void> {
-  const tabId = source.mock ? undefined : await activeTabId();
-  const [state, summary] = await Promise.allSettled([source.getTabState(tabId), source.getSnapshotSummary()]);
+  const tab = source.mock ? undefined : await activeTab();
+  const [state, summary] = await Promise.allSettled([source.getTabState(tab?.id), source.getSnapshotSummary()]);
   const snapshot = summary.status === "fulfilled" ? summary.value : undefined;
 
   if (state.status === "rejected") {
@@ -89,6 +109,10 @@ async function render(source: StateSource, root: HTMLElement): Promise<void> {
   const { value } = state;
   root.replaceChildren(statusLine(value.verdict.level, statusLabel(value.verdict.level)), stateDetails(value, snapshot));
   if (value.blocked.length > 0) root.append(blockedFiles(value));
+  // Already on the blocked page, another copy would only add a history entry for Go back to trip on.
+  if (value.verdict.level === "mismatch" && !isBlockedPage(tab?.url ?? "", BLOCKED_PAGE)) {
+    root.append(seeDetailsButton(source, tab, root));
+  }
   if (value.configValues && Object.keys(value.configValues).length > 0) root.append(configValues(value.configValues));
   root.append(syncLine(snapshot));
 }

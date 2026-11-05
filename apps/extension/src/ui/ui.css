@@ -155,6 +155,11 @@ code {
   background: var(--grey);
 }
 
+.see-details {
+  width: 100%;
+  margin-top: 10px;
+}
+
 .config {
   max-height: 140px;
   overflow-y: auto;
