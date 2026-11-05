@@ -56,9 +56,11 @@ describe("runBuild", () => {
     mkdirSync(source);
     commit = createFixtureRepo(source);
     // Lets the recipe keep its https URL while git actually reads the local fixture.
-    vi.stubEnv("GIT_CONFIG_COUNT", "1");
-    vi.stubEnv("GIT_CONFIG_KEY_0", `url.file://${source}.insteadOf`);
-    vi.stubEnv("GIT_CONFIG_VALUE_0", REPO_URL);
+    // HOME is one of the few host variables the build passes on, so git finds this config.
+    const home = join(root, "home");
+    mkdirSync(home);
+    writeFileSync(join(home, ".gitconfig"), `[url "file://${source}"]\n\tinsteadOf = ${REPO_URL}\n`);
+    vi.stubEnv("HOME", home);
   });
 
   afterEach(() => {

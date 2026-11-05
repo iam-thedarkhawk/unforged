@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { ConfigRule, Recipe } from "@unforged/core";
 import { parse } from "yaml";
 import { z } from "zod";
+import { SECRET_NAME } from "./env.js";
 import { CliError, EXIT_BUILD_FAILED } from "./errors.js";
 
 const hasNoParentSegment = (path: string) => !path.split("/").includes("..");
@@ -27,7 +28,13 @@ const recipeSchema = z.strictObject({
   node: z.string().regex(/^\d+(\.\d+){0,2}$/),
   packageManager: z.string().regex(/^[a-z]+@\S+$/),
   files: z.record(repoRelativePath, z.string()),
-  env: z.record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string().regex(/^[^\r\n]*$/)),
+  env: z
+    .record(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), z.string().regex(/^[^\r\n]*$/))
+    .superRefine((env, ctx) => {
+      for (const name of Object.keys(env).filter((key) => SECRET_NAME.test(key))) {
+        ctx.addIssue({ code: "custom", path: [name], message: "recipe env must not contain secrets" });
+      }
+    }),
   envFile: repoRelativePath,
   buildPath: z
     .string()

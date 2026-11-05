@@ -2,6 +2,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { canonicalJSON, manifestRoot, type Manifest, type Recipe } from "@unforged/core";
+import { buildEnv, hostEnv } from "./env.js";
 import { CliError, EXIT_BUILD_FAILED, EXIT_NONDETERMINISM } from "./errors.js";
 import { diffFiles, hashOutput } from "./manifest.js";
 import { nodeVersionMatches, parseRecipe, resolveYarn } from "./recipe.js";
@@ -81,8 +82,7 @@ async function buildOnce(recipe: Recipe, log: number): Promise<Manifest> {
   await clone(recipe, log);
   writeRecipeFiles(recipe);
 
-  const env = { ...process.env, ...recipe.env };
-  const step = { cwd: repoDir, env, log };
+  const step = { cwd: repoDir, env: buildEnv(recipe), log };
   await runShell("install", resolveYarn(recipe.install, recipe.packageManager, repoDir), step);
   await runShell("build", resolveYarn(recipe.build, recipe.packageManager, repoDir), step);
   return hashOutput(recipe, join(repoDir, recipe.output));
@@ -91,7 +91,7 @@ async function buildOnce(recipe: Recipe, log: number): Promise<Manifest> {
 /** Fetches only the pinned commit: `git clone --branch` can't take a hash. */
 async function clone(recipe: Recipe, log: number): Promise<void> {
   mkdirSync(recipe.buildPath, { recursive: true });
-  const step = { cwd: recipe.buildPath, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, log };
+  const step = { cwd: recipe.buildPath, env: { ...hostEnv(), GIT_TERMINAL_PROMPT: "0" }, log };
   progress(`cloning ${recipe.repo} at ${recipe.commit}`);
   await runProcess("clone", "git", ["init", "-q"], step);
   await runProcess("clone", "git", ["remote", "add", "origin", recipe.repo], step);
