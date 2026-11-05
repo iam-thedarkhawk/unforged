@@ -2,3 +2,5 @@ node_modules
 dist
 out
 .env*
+/manifest.json
+/build.log
