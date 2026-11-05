@@ -112,7 +112,7 @@ Some files carry build-time configuration, not code. Lido's `/runtime/window-env
 interface ConfigRule {
   kind: "window-env-json";           // the only kind for the hackathon
   allowedKeys: string[];             // any other key -> mismatch
-  urlHostAllowlist?: string[];       // every string value that parses as a URL must use one of these hosts
+  urlHostAllowlist?: string[];       // every string value that parses as a URL must use one of these hosts: host (with port), exact, case-insensitive
 }
 ```
 A config file passes if it parses exactly, has only allowed keys, contains only JSON primitives or arrays of primitives, and every URL host is allowlisted. The extension shows the accepted values in the popup.
