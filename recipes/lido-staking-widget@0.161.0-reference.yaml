@@ -52,61 +52,46 @@ configFiles:
   /runtime/window-env.js:
     kind: window-env-json
     allowedKeys:
-      - SELF_ORIGIN
-      - ROOT_ORIGIN
-      - DOCS_ORIGIN
-      - HELP_ORIGIN
-      - RESEARCH_ORIGIN
-      - EL_RPC_URLS_1
-      - PREFILL_UNSAFE_EL_RPC_URLS_1
-      - EL_RPC_URLS_17000
-      - PREFILL_UNSAFE_EL_RPC_URLS_17000
-      - EL_RPC_URLS_560048
-      - PREFILL_UNSAFE_EL_RPC_URLS_560048
-      - EL_RPC_URLS_11155111
-      - PREFILL_UNSAFE_EL_RPC_URLS_11155111
-      - EL_RPC_URLS_10
-      - PREFILL_UNSAFE_EL_RPC_URLS_10
-      - EL_RPC_URLS_11155420
-      - PREFILL_UNSAFE_EL_RPC_URLS_11155420
-      - EL_RPC_URLS_130
-      - PREFILL_UNSAFE_EL_RPC_URLS_130
-      - EL_RPC_URLS_1301
-      - PREFILL_UNSAFE_EL_RPC_URLS_1301
-      - EL_RPC_URLS_8453
-      - PREFILL_UNSAFE_EL_RPC_URLS_8453
-      - EL_RPC_URLS_59144
-      - PREFILL_UNSAFE_EL_RPC_URLS_59144
-      - EL_RPC_URLS_42161
-      - PREFILL_UNSAFE_EL_RPC_URLS_42161
-      - SUPPORTED_CHAINS
-      - DEFAULT_CHAIN
-      - WALLETCONNECT_PROJECT_ID
+      - addressApiValidationEnabled
+      - blogOrigin
+      - defaultChain
+      - docsOrigin
+      - enableQaHelpers
+      - helpOrigin
+      - ipfsMode
+      - isProd
+      - prefillUnsafeElRpcUrls1
+      - prefillUnsafeElRpcUrls10
+      - prefillUnsafeElRpcUrls11155111
+      - prefillUnsafeElRpcUrls11155420
+      - prefillUnsafeElRpcUrls130
+      - prefillUnsafeElRpcUrls1301
+      - prefillUnsafeElRpcUrls17000
+      - prefillUnsafeElRpcUrls42161
+      - prefillUnsafeElRpcUrls560048
+      - prefillUnsafeElRpcUrls59144
+      - prefillUnsafeElRpcUrls8453
+      - researchOrigin
+      - rootOrigin
+      - selfOrigin
+      - supportedChains
+      - useConfigManifestFile
+      - walletconnectProjectId
     urlHostAllowlist:
-      - stake.example.org
-      - example.org
+      - blog.lido.fi
       - docs.example.org
       - help.example.org
-      - research.example.org
-      - rpc1.example.org
       - prefill1.example.org
-      - rpc17000.example.org
-      - prefill17000.example.org
-      - rpc560048.example.org
-      - prefill560048.example.org
-      - rpc11155111.example.org
-      - prefill11155111.example.org
-      - rpc10.example.org
       - prefill10.example.org
-      - rpc11155420.example.org
+      - prefill11155111.example.org
       - prefill11155420.example.org
-      - rpc130.example.org
       - prefill130.example.org
-      - rpc1301.example.org
       - prefill1301.example.org
-      - rpc8453.example.org
-      - prefill8453.example.org
-      - rpc59144.example.org
-      - prefill59144.example.org
-      - rpc42161.example.org
+      - prefill17000.example.org
       - prefill42161.example.org
+      - prefill560048.example.org
+      - prefill59144.example.org
+      - prefill8453.example.org
+      - research.example.org
+      - example.org
+      - stake.example.org

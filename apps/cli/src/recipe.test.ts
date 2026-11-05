@@ -1,10 +1,14 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { checkConfig, type Recipe } from "@unforged/core";
 import { describe, expect, it } from "vitest";
 import { stringify } from "yaml";
 import { nodeVersionMatches, parseRecipe, resolveYarn } from "./recipe.js";
 
 const study = (name: string) => new URL(`../../../study/lido-0.161.0/${name}`, import.meta.url);
 const recipeFile = (name: string) => new URL(`../../../recipes/${name}`, import.meta.url);
+const fixture = (name: string) => new URL(`../fixtures/lido-0.161.0/${name}`, import.meta.url);
+const CONFIG_PATH = "/runtime/window-env.js";
 
 const VALID = {
   dapp: "lido-staking-widget",
@@ -86,9 +90,56 @@ describe("resolveYarn", () => {
 describe("Lido recipes", () => {
   const reference = parseRecipe(readFileSync(recipeFile("lido-staking-widget@0.161.0-reference.yaml"), "utf8"));
   const demo = parseRecipe(readFileSync(recipeFile("lido-staking-widget@0.161.0.yaml"), "utf8"));
+  const referenceEnvJs = readFileSync(fixture("window-env-reference.js"));
+  const demoEnvJs = readFileSync(fixture("window-env-demo.js"));
 
-  const hostsOf = (env: Record<string, string>) =>
-    [...new Set(Object.values(env).flatMap((value) => (/^https?:\/\//.test(value) ? [new URL(value).hostname] : [])))];
+  const ruleOf = (recipe: Recipe) => recipe.configFiles[CONFIG_PATH]!;
+
+  // The keys the app writes to window.__env__, which are not the env var names.
+  const WINDOW_ENV_KEYS = [
+    "addressApiValidationEnabled",
+    "blogOrigin",
+    "defaultChain",
+    "docsOrigin",
+    "enableQaHelpers",
+    "helpOrigin",
+    "ipfsMode",
+    "isProd",
+    "prefillUnsafeElRpcUrls1",
+    "prefillUnsafeElRpcUrls10",
+    "prefillUnsafeElRpcUrls11155111",
+    "prefillUnsafeElRpcUrls11155420",
+    "prefillUnsafeElRpcUrls130",
+    "prefillUnsafeElRpcUrls1301",
+    "prefillUnsafeElRpcUrls17000",
+    "prefillUnsafeElRpcUrls42161",
+    "prefillUnsafeElRpcUrls560048",
+    "prefillUnsafeElRpcUrls59144",
+    "prefillUnsafeElRpcUrls8453",
+    "researchOrigin",
+    "rootOrigin",
+    "selfOrigin",
+    "supportedChains",
+    "useConfigManifestFile",
+    "walletconnectProjectId",
+  ];
+  const SHARED_HOSTS = [
+    "blog.lido.fi",
+    "docs.example.org",
+    "example.org",
+    "help.example.org",
+    "prefill1.example.org",
+    "prefill10.example.org",
+    "prefill11155111.example.org",
+    "prefill11155420.example.org",
+    "prefill130.example.org",
+    "prefill1301.example.org",
+    "prefill17000.example.org",
+    "prefill42161.example.org",
+    "prefill59144.example.org",
+    "prefill8453.example.org",
+    "research.example.org",
+  ];
 
   it("reference env is exactly the study env file, and so is build-info.json", () => {
     const lines = Object.entries(reference.env).map(([key, value]) => `${key}=${value}\n`);
@@ -96,26 +147,53 @@ describe("Lido recipes", () => {
     expect(reference.files["build-info.json"]).toBe(readFileSync(study("build-info.json"), "utf8"));
   });
 
-  it("demo differs from reference only in the four agreed env values and the allowlist", () => {
-    const changed = {
+  it("the reference fixture is the file the study hashed", () => {
+    const hash = createHash("sha256").update(referenceEnvJs).digest("hex");
+    const studyManifest = JSON.parse(readFileSync(study("manifest-linux-x64.json"), "utf8"));
+    expect(hash).toBe(studyManifest[CONFIG_PATH]);
+  });
+
+  it("demo differs from reference only in the agreed env values and the config rule", () => {
+    expect(demo.env).toEqual({
+      ...reference.env,
       SUPPORTED_CHAINS: "560048",
       DEFAULT_CHAIN: "560048",
       EL_RPC_URLS_560048: "https://hoodi.drpc.org",
+      PREFILL_UNSAFE_EL_RPC_URLS_560048: "https://hoodi.drpc.org",
       SELF_ORIGIN: "http://localhost:8080",
-    };
-    expect(demo.env).toEqual({ ...reference.env, ...changed });
-
-    const strip = ({ env: _env, configFiles: _configFiles, ...rest }: typeof demo) => rest;
+    });
+    const strip = ({ env: _env, configFiles: _configFiles, ...rest }: Recipe) => rest;
     expect(strip(demo)).toEqual(strip(reference));
   });
 
+  it("pins each recipe's config rule", () => {
+    expect(ruleOf(reference).allowedKeys).toEqual(WINDOW_ENV_KEYS);
+    expect(ruleOf(demo).allowedKeys).toEqual(WINDOW_ENV_KEYS);
+    expect([...ruleOf(reference).urlHostAllowlist!].sort()).toEqual(
+      [...SHARED_HOSTS, "prefill560048.example.org", "stake.example.org"].sort(),
+    );
+    expect([...ruleOf(demo).urlHostAllowlist!].sort()).toEqual(
+      [...SHARED_HOSTS, "hoodi.drpc.org", "localhost"].sort(),
+    );
+  });
+
   it.each([
-    ["reference", reference],
-    ["demo", demo],
-  ])("%s config rule allows every env key and every env host", (_name, recipe) => {
-    const rule = recipe.configFiles["/runtime/window-env.js"]!;
-    expect(rule.kind).toBe("window-env-json");
-    expect(rule.allowedKeys).toEqual(Object.keys(recipe.env));
-    expect(rule.urlHostAllowlist).toEqual(hostsOf(recipe.env));
+    ["reference", reference, referenceEnvJs],
+    ["demo", demo, demoEnvJs],
+  ])("%s rule accepts its built window-env.js", (_name, recipe, bytes) => {
+    const result = checkConfig(ruleOf(recipe), bytes);
+    expect(result.error).toBeUndefined();
+    expect(result.ok).toBe(true);
+    expect(Object.keys(result.values!)).toEqual(WINDOW_ENV_KEYS);
+  });
+
+  it("demo window-env.js uses the Hoodi RPC", () => {
+    const { values } = checkConfig(ruleOf(demo), demoEnvJs);
+    expect(values!.prefillUnsafeElRpcUrls560048).toEqual(["https://hoodi.drpc.org"]);
+  });
+
+  it("demo rule rejects an RPC on any other host", () => {
+    const tampered = demoEnvJs.toString().replace("https://hoodi.drpc.org", "https://evil.invalid");
+    expect(checkConfig(ruleOf(demo), new TextEncoder().encode(tampered)).ok).toBe(false);
   });
 });
