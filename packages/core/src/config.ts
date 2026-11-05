@@ -44,7 +44,7 @@ function checkEntry(rule: ConfigRule, key: string, value: unknown): string | und
   return undefined;
 }
 
-/** Strings that are not http(s) URLs pass; http(s) URLs need an allowlisted host. */
+/** Strings that are not http(s) URLs pass; http(s) URLs need an allowlisted host (with port). */
 function isAllowedUrl(rule: ConfigRule, value: string): boolean {
   let url: URL;
   try {
@@ -53,7 +53,7 @@ function isAllowedUrl(rule: ConfigRule, value: string): boolean {
     return true;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return true;
-  return (rule.urlHostAllowlist ?? []).some((host) => host.toLowerCase() === url.hostname);
+  return (rule.urlHostAllowlist ?? []).some((host) => host.toLowerCase() === url.host);
 }
 
 function isPrimitive(value: unknown): value is Primitive {

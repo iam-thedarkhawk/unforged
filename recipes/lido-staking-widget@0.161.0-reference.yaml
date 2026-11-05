@@ -1,0 +1,97 @@
+# Study env: compares against study/lido-0.161.0/manifest-linux-x64.json. Values are public placeholders.
+dapp: lido-staking-widget
+release: "0.161.0"
+repo: https://github.com/lidofinance/ethereum-staking-widget
+commit: e256fd6db9f713433b5b95bcf2d2fd833131a547
+node: "24"
+packageManager: yarn@4.17.1
+files:
+  build-info.json: |
+    {
+      "version": "0.161.0",
+      "branch": "main",
+      "commit": "e256fd6db9f713433b5b95bcf2d2fd833131a547"
+    }
+env:
+  SELF_ORIGIN: "https://stake.example.org"
+  ROOT_ORIGIN: "https://example.org"
+  DOCS_ORIGIN: "https://docs.example.org"
+  HELP_ORIGIN: "https://help.example.org"
+  RESEARCH_ORIGIN: "https://research.example.org"
+  EL_RPC_URLS_1: "https://rpc1.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_1: "https://prefill1.example.org"
+  EL_RPC_URLS_17000: "https://rpc17000.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_17000: "https://prefill17000.example.org"
+  EL_RPC_URLS_560048: "https://rpc560048.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_560048: "https://prefill560048.example.org"
+  EL_RPC_URLS_11155111: "https://rpc11155111.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_11155111: "https://prefill11155111.example.org"
+  EL_RPC_URLS_10: "https://rpc10.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_10: "https://prefill10.example.org"
+  EL_RPC_URLS_11155420: "https://rpc11155420.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_11155420: "https://prefill11155420.example.org"
+  EL_RPC_URLS_130: "https://rpc130.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_130: "https://prefill130.example.org"
+  EL_RPC_URLS_1301: "https://rpc1301.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_1301: "https://prefill1301.example.org"
+  EL_RPC_URLS_8453: "https://rpc8453.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_8453: "https://prefill8453.example.org"
+  EL_RPC_URLS_59144: "https://rpc59144.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_59144: "https://prefill59144.example.org"
+  EL_RPC_URLS_42161: "https://rpc42161.example.org"
+  PREFILL_UNSAFE_EL_RPC_URLS_42161: "https://prefill42161.example.org"
+  SUPPORTED_CHAINS: "1,560048"
+  DEFAULT_CHAIN: "1"
+  WALLETCONNECT_PROJECT_ID: "00000000000000000000000000000000"
+envFile: .env.production.local
+buildPath: /unforged/build
+install: yarn install --immutable
+build: yarn build:ipfs
+output: out
+configFiles:
+  /runtime/window-env.js:
+    kind: window-env-json
+    allowedKeys:
+      - addressApiValidationEnabled
+      - blogOrigin
+      - defaultChain
+      - docsOrigin
+      - enableQaHelpers
+      - helpOrigin
+      - ipfsMode
+      - isProd
+      - prefillUnsafeElRpcUrls1
+      - prefillUnsafeElRpcUrls10
+      - prefillUnsafeElRpcUrls11155111
+      - prefillUnsafeElRpcUrls11155420
+      - prefillUnsafeElRpcUrls130
+      - prefillUnsafeElRpcUrls1301
+      - prefillUnsafeElRpcUrls17000
+      - prefillUnsafeElRpcUrls42161
+      - prefillUnsafeElRpcUrls560048
+      - prefillUnsafeElRpcUrls59144
+      - prefillUnsafeElRpcUrls8453
+      - researchOrigin
+      - rootOrigin
+      - selfOrigin
+      - supportedChains
+      - useConfigManifestFile
+      - walletconnectProjectId
+    urlHostAllowlist:
+      - blog.lido.fi
+      - docs.example.org
+      - help.example.org
+      - prefill1.example.org
+      - prefill10.example.org
+      - prefill11155111.example.org
+      - prefill11155420.example.org
+      - prefill130.example.org
+      - prefill1301.example.org
+      - prefill17000.example.org
+      - prefill42161.example.org
+      - prefill560048.example.org
+      - prefill59144.example.org
+      - prefill8453.example.org
+      - research.example.org
+      - example.org
+      - stake.example.org
