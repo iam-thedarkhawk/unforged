@@ -2,10 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Blocked by Unforged</title>
+    <link rel="stylesheet" href="./ui/ui.css" />
   </head>
-  <body>
-    <h1>Blocked by Unforged</h1>
-    <script type="module" src="./blocked.ts"></script>
+  <body class="blocked">
+    <header class="blocked-header">
+      <h1 id="title">Blocked: this dapp's code doesn't match its public source</h1>
+    </header>
+    <main id="app">
+      <p id="explanation">
+        Independent builders rebuilt this app from its public source, and the files below differ from what they got, so
+        Unforged stopped them from loading.
+      </p>
+      <section id="files"></section>
+      <section id="diff"></section>
+      <div class="actions">
+        <button type="button" id="open-copy" aria-describedby="copy-note" disabled>Open verified copy</button>
+        <button type="button" id="go-back">Go back</button>
+      </div>
+      <p id="copy-note" role="status"></p>
+    </main>
+    <script type="module" src="./ui/blocked.ts"></script>
   </body>
 </html>
