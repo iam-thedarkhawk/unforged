@@ -1,0 +1,255 @@
+/* Shared by popup.html and blocked.html. Colours flip with prefers-color-scheme. */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --surface: #f4f4f6;
+  --text: #1c1c21;
+  --muted: #55555f;
+  --border: #d4d4da;
+  --focus: #0b57d0;
+  --green: #1b7a36;
+  --amber: #b26a00;
+  --red: #b3261e;
+  --grey: #70707a;
+  --button-bg: #e9e9ee;
+  --on-red: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171b;
+    --surface: #222228;
+    --text: #efeff3;
+    --muted: #b4b4bf;
+    --border: #3d3d46;
+    --focus: #8ab4f8;
+    --green: #4cc26d;
+    --amber: #f2b13c;
+    --red: #8f1d17;
+    --grey: #9a9aa5;
+    --button-bg: #2f2f37;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, sans-serif;
+}
+
+h1,
+h2,
+p,
+ul,
+dl {
+  margin: 0;
+}
+
+h2 {
+  margin-block: 14px 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+code {
+  font: 12px/1.45 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+/* Key/value lists */
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 12px;
+}
+
+.details dt {
+  color: var(--muted);
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Blocked file lists */
+.file-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.file-list li {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.file-reason {
+  font-weight: 600;
+}
+
+.mock-notice {
+  margin-bottom: 10px;
+  padding: 2px 8px;
+  border: 1px dashed var(--muted);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Popup */
+.popup {
+  width: 360px;
+}
+
+.popup main {
+  padding: 14px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.address {
+  display: inline-block;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.dot-reproduced {
+  background: var(--green);
+}
+
+.dot-vendor {
+  background: var(--amber);
+}
+
+.dot-mismatch {
+  background: #d93025;
+}
+
+.dot-unsupported,
+.dot-error {
+  background: var(--grey);
+}
+
+.config {
+  max-height: 140px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.note,
+.sync {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sync {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Blocked page */
+.blocked-header {
+  padding: 28px 24px;
+  background: var(--red);
+  color: var(--on-red);
+}
+
+/* Same text column as .blocked main: 760px less its 24px side padding. */
+.blocked-header h1 {
+  max-width: 712px;
+  margin-inline: auto;
+  font-size: 28px;
+  line-height: 1.25;
+}
+
+[data-state="clear"] .blocked-header {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.blocked main {
+  max-width: 760px;
+  margin-inline: auto;
+  padding: 20px 24px 40px;
+}
+
+.blocked #explanation {
+  font-size: 16px;
+}
+
+.blocked h2 {
+  font-size: 13px;
+}
+
+.hashes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+button {
+  min-height: 36px;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--button-bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:enabled {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+#copy-note {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
