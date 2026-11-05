@@ -4,3 +4,5 @@ out
 .env*
 /manifest.json
 /build.log
+/attestation.json
+/build-info.json
