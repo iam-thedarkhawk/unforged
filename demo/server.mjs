@@ -3,13 +3,9 @@
 import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DEMO_DIR, servedDirs } from './dirs.mjs';
 
 const PORT = 8080;
-const DEMO_DIR = fileURLToPath(new URL('.', import.meta.url));
-const SITE_DIR = join(DEMO_DIR, 'site');
-const TAMPERED_DIR = join(DEMO_DIR, 'tampered');
-const CLONE_DIR = join(DEMO_DIR, 'clone');
 const STATE_FILE = join(DEMO_DIR, 'state.json');
 
 const MODES = ['reset', 'swap', 'inject', 'hijack'];
@@ -21,6 +17,15 @@ const CONTENT_TYPES = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.ttf': 'font/ttf',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.txt': 'text/plain',
+  '.xml': 'application/xml',
+  '.map': 'application/json',
+  '.webmanifest': 'application/manifest+json',
 };
 
 /** A fresh checkout has no state.json and serves the genuine site. Anything else invalid throws. */
@@ -68,14 +73,19 @@ function injectEvilScript(html) {
   return text.replace('</head>', `${EVIL_TAG}</head>`);
 }
 
-/** Applies the current mode to a request. Returns the file and body to send, or null for a 404. */
+/**
+ * Applies the current mode to a request. Returns the file and body to send, or null for a 404.
+ * Bodies stay raw Buffers, never compressed or re-encoded, so served files hash exactly like
+ * the build. Inject mode's index.html is the only exception.
+ */
 async function resolveResponse(state, requestPath) {
-  const root = state.mode === 'hijack' ? CLONE_DIR : SITE_DIR;
+  const dirs = await servedDirs();
+  const root = state.mode === 'hijack' ? dirs.clone : dirs.site;
   const file = await findFile(root, requestPath);
   if (file === null) return null;
 
   if (state.mode === 'swap' && file === toRelativePath(state.target)) {
-    return { file, body: await readFile(join(TAMPERED_DIR, file)) };
+    return { file, body: await readFile(join(dirs.tampered, file)) };
   }
   const body = await readFile(join(root, file));
   if (state.mode === 'inject' && file === 'index.html') {
@@ -116,5 +126,5 @@ createServer((req, res) => {
     send(req, res, 500, 'text/plain', `demo server error: ${err.message}\n`);
   });
 }).listen(PORT, 'localhost', () => {
-  console.log(`demo site on http://localhost:${PORT}`);
+  console.log(`demo site on http://localhost:${PORT} (demo/site, or demo/fixtures while it is empty)`);
 });
