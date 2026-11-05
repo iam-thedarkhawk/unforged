@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { sha256Hex, type AcceptedRelease, type Manifest, type Policy } from "@unforged/core";
+import { checkConfig, sha256Hex, type AcceptedRelease, type Manifest, type Policy } from "@unforged/core";
 import lido from "../fixtures/lido-0.161.0.manifest.json";
+import fixtureSnapshot from "../fixtures/snapshot.json";
 import { decide, newTab, servedPath, type Snapshot } from "./decide.js";
 
 const ORIGIN = "http://localhost:8080";
@@ -11,11 +13,13 @@ const INDEX = "<html>genuine</html>";
 const CHUNK = "console.log('genuine chunk')";
 const OLD_CHUNK = "console.log('chunk from 0.160.0')";
 const OLD_INDEX = "<html>0.160.0</html>";
-const ENV_OK = 'window.__env__={"rpc":"https://rpc.example.org/x"}';
-const ENV_BAD = 'window.__env__={"rpc":"https://evil.example.com/x"}';
+const ENV_OK = 'window.__env__={"ipfsMode":false,"rpc":"https://rpc.example.org/x"}';
+const ENV_BAD = 'window.__env__={"ipfsMode":false,"rpc":"https://evil.example.com/x"}';
+// Same keys and hosts as ENV_OK, so checkConfig passes; only the pin catches it.
+const ENV_FLIPPED = 'window.__env__={"ipfsMode":true,"rpc":"https://rpc.example.org/x"}';
 const EVIL = "steal()";
 
-const ENV_RULE = { kind: "window-env-json" as const, allowedKeys: ["rpc"], urlHostAllowlist: ["rpc.example.org"] };
+const ENV_RULE = { kind: "window-env-json" as const, allowedKeys: ["ipfsMode", "rpc"], urlHostAllowlist: ["rpc.example.org"] };
 
 async function release(name: string, files: Record<string, string>): Promise<AcceptedRelease> {
   const hashed: Record<string, string> = {};
@@ -40,7 +44,8 @@ async function release(name: string, files: Record<string, string>): Promise<Acc
   };
 }
 
-async function snapshot(): Promise<Snapshot> {
+async function snapshot(configPins: Record<string, string> | undefined = undefined): Promise<Snapshot> {
+  configPins ??= { "/runtime/window-env.js": await hash(ENV_OK) };
   const policy: Policy = {
     dapp: "demo",
     origins: [ORIGIN],
@@ -50,6 +55,7 @@ async function snapshot(): Promise<Snapshot> {
     acceptLatest: 3,
     thirdParty: { "https://cdn.example.org": { "/pinned.js": await hash("pinned()") } },
     recovery: { gateway: "TODO" },
+    configPins,
   };
   const current = await release("2.0.0", { "/index.html": INDEX, "/app/chunk.js": CHUNK });
   const old = await release("1.0.0", { "/index.html": OLD_INDEX, "/app/chunk.js": OLD_CHUNK });
@@ -148,13 +154,40 @@ describe("decide", () => {
     expect(d.blocked?.reason).toBe("release-mixed");
   });
 
-  it("checks config files and records accepted values", async () => {
+  it("allows a pinned config file and records its values", async () => {
     const snap = await snapshot();
     const tab = await lockedTab(snap);
     expect(await decide(snap, tab, req("/runtime/window-env.js", ENV_OK))).toEqual({ allow: true });
-    expect(tab.state.configValues).toEqual({ rpc: "https://rpc.example.org/x" });
-    const bad = await decide(snap, tab, req("/runtime/window-env.js", ENV_BAD));
-    expect(bad.blocked?.reason).toBe("config-invalid");
+    expect(tab.state.configValues).toEqual({ ipfsMode: false, rpc: "https://rpc.example.org/x" });
+  });
+
+  it("blocks a config file that passes checkConfig but differs from the pin", async () => {
+    const snap = await snapshot();
+    const tab = await lockedTab(snap);
+    const d = await decide(snap, tab, req("/runtime/window-env.js", ENV_FLIPPED));
+    expect(d.blocked).toMatchObject({ reason: "config-invalid", expected: await hash(ENV_OK), actual: await hash(ENV_FLIPPED) });
+    expect(tab.state.configValues).toBeUndefined();
+  });
+
+  it("blocks a config file with no pin, even if checkConfig passes", async () => {
+    const unpinned: Record<string, string>[] = [{}, { "/other.js": "0".repeat(64) }];
+    for (const pins of unpinned) {
+      const snap = await snapshot(pins);
+      const tab = await lockedTab(snap);
+      const d = await decide(snap, tab, req("/runtime/window-env.js", ENV_OK));
+      expect(d.blocked?.reason).toBe("config-invalid");
+    }
+    const snap = await snapshot();
+    delete snap.dapps.demo!.policy.configPins;
+    const tab = await lockedTab(snap);
+    expect((await decide(snap, tab, req("/runtime/window-env.js", ENV_OK))).allow).toBe(false);
+  });
+
+  it("blocks a pinned config file that fails checkConfig", async () => {
+    const snap = await snapshot({ "/runtime/window-env.js": await hash(ENV_BAD) });
+    const tab = await lockedTab(snap);
+    const d = await decide(snap, tab, req("/runtime/window-env.js", ENV_BAD));
+    expect(d.blocked?.reason).toBe("config-invalid");
   });
 
   it("resets the tab on a new top-level document", async () => {
@@ -169,5 +202,26 @@ describe("decide", () => {
     const snap = await snapshot();
     const d = await decide(snap, newTab(), { ...req("/", INDEX, "main_frame"), tabOrigin: "https://other.example" });
     expect(d.allow).toBe(false);
+  });
+});
+
+describe("fixture snapshot config pin", () => {
+  const genuine = readFileSync(new URL("../fixtures/window-env.demo.js", import.meta.url));
+  const flipped = enc(genuine.toString("utf8").replace('"ipfsMode":false', '"ipfsMode":true'));
+  const snap = fixtureSnapshot as unknown as Snapshot;
+  const lidoTab = () => ({ ...newTab(), lock: snap.dapps["lido-staking-widget"]!.releases[0] });
+  const envReq = (body: Uint8Array) => ({ url: `${ORIGIN}/runtime/window-env.js`, type: "script", tabOrigin: ORIGIN, body });
+
+  it("pins the genuine demo window-env.js", async () => {
+    const pins = snap.dapps["lido-staking-widget"]!.policy.configPins!;
+    expect(pins["/runtime/window-env.js"]).toBe("1dc276f81fab369bcab6cd53b511e4090897b27501adae5b5b5cd9fd46489537");
+    expect(await sha256Hex(genuine)).toBe(pins["/runtime/window-env.js"]);
+    expect(await decide(snap, lidoTab(), envReq(genuine))).toEqual({ allow: true });
+  });
+
+  it("blocks the demo file with ipfsMode flipped, though the Lido rule alone accepts it", async () => {
+    const rule = lido.config["/runtime/window-env.js"] as Manifest["config"][string];
+    expect(checkConfig(rule, flipped).ok).toBe(true);
+    expect((await decide(snap, lidoTab(), envReq(flipped))).blocked?.reason).toBe("config-invalid");
   });
 });
