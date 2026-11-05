@@ -173,7 +173,7 @@ describe("Lido recipes", () => {
       [...SHARED_HOSTS, "prefill560048.example.org", "stake.example.org"].sort(),
     );
     expect([...ruleOf(demo).urlHostAllowlist!].sort()).toEqual(
-      [...SHARED_HOSTS, "hoodi.drpc.org", "localhost"].sort(),
+      [...SHARED_HOSTS, "hoodi.drpc.org", "localhost:8080"].sort(),
     );
   });
 

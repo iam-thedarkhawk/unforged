@@ -94,4 +94,4 @@ configFiles:
       - prefill8453.example.org
       - research.example.org
       - example.org
-      - localhost
+      - localhost:8080
