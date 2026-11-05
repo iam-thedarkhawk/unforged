@@ -68,7 +68,6 @@ Spikes go in **throwaway repos**, not the project repo.
 | Arya | Lido: rebuild 0.161.0 locally and compare with the official release CID (Lido's documented steps) | 29 Oct |
 | Arya | Firefox spike: a tiny extension that hashes one page's JS with `filterResponseData` and blocks a modified file | 30 Oct |
 | Arya | Pick the project name | 30 Oct |
-| Arya | Snapshot: check the live bundle for leaked env vars; disclose privately if sensitive | 31 Oct |
 | Varun | Arkiv: get GLM from the Hub faucet, write and read one test entity on Tiramisu | 30 Oct |
 | Varun | Swarm: upload a folder with bee-js, open via a gateway; ask Swarm's team how postage stamps work at the event | 31 Oct |
 | Varun | Safe{Wallet}: build twice on a 16 GB+ machine and compare | 1 Nov |
