@@ -1,8 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Manifest, Recipe } from "@unforged/core";
+import { sha256Hex, type Manifest, type Recipe } from "@unforged/core";
 import { CliError, EXIT_BUILD_FAILED } from "./errors.js";
-import { sha256Hex } from "./hash.js";
 
 /** Served paths ("/a/b.js") of every file under `dir`. Anything but a regular file is refused. */
 function listServedPaths(dir: string, prefix = ""): string[] {

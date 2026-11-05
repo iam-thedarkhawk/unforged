@@ -1,9 +1,8 @@
 import { execFileSync, spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Manifest, Recipe } from "@unforged/core";
+import { canonicalJSON, manifestRoot, type Manifest, type Recipe } from "@unforged/core";
 import { CliError, EXIT_BUILD_FAILED, EXIT_NONDETERMINISM } from "./errors.js";
-import { canonicalJSON, manifestRoot } from "./hash.js";
 import { diffFiles, hashOutput } from "./manifest.js";
 import { nodeVersionMatches, parseRecipe, resolveYarn } from "./recipe.js";
 

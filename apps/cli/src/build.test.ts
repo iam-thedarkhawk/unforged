@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stringify } from "yaml";
 import { runBuild } from "./build.js";
 import { CliError, EXIT_BUILD_FAILED, EXIT_NONDETERMINISM } from "./errors.js";
-import { manifestRoot } from "./hash.js";
+import { manifestRoot } from "@unforged/core";
 
 const REPO_URL = "https://example.invalid/fixture";
 
