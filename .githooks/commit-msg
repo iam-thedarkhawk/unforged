@@ -1,0 +1,5 @@
+#!/bin/sh
+if grep -qiE '^(Co-Authored-By:.*(claude|anthropic)|Claude-Session:)|Generated with \[?Claude' "$1"; then
+  echo "commit-msg: Claude attribution found in the message. Remove it and commit again." >&2
+  exit 1
+fi
