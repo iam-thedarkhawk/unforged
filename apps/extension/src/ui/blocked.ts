@@ -2,6 +2,7 @@
 // HTML, so it stays up unless the background reports that nothing is blocked.
 import type { Blocked, TabState } from "@unforged/core";
 import type { SyncSummary } from "../summary.js";
+import { showDiffPanel } from "./diff-panel.js";
 import { byId, el, showMockNotice } from "./dom.js";
 import {
   blockedFileLabel,
@@ -98,6 +99,7 @@ async function load(source: StateSource, tabId: number | undefined): Promise<voi
   if (state.value.verdict.level === "mismatch") showBlocked(state.value);
   else showNothingBlocked(state.value);
   setUpCopyButton(source, tabId, verifiedCopyAvailable(snapshot, dappOf(state.value)));
+  if (state.value.verdict.level === "mismatch") await showDiffPanel(source, tabId, state.value.blocked);
 }
 
 function main(): void {

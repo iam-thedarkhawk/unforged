@@ -67,6 +67,14 @@ export const MOCK_STATES: Record<Level, TabState> = {
   unsupported: { verdict: { level: "unsupported" }, checked: 0, blocked: [] },
 };
 
+const VERIFIED_BODY = "function send(tx){return provider.request({method:'eth_sendTransaction',params:[tx]})}";
+
+/** The two sides of the mock diff: the served copy redirects the transaction. */
+export const MOCK_BODIES = {
+  verified: VERIFIED_BODY,
+  served: VERIFIED_BODY.replace("params:[tx]", "params:[{...tx,to:'0x000000000000000000000000000000000000dEaD'}]"),
+};
+
 export function mockSummary(now: number = Date.now()): SyncSummary {
   return {
     lastError: null,
