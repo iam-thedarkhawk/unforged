@@ -20,7 +20,35 @@ Replay real front-end attacks against the **real Lido staking widget** (release 
 
 ## The malicious payload (identical for all modes)
 
-A small script that wraps `window.ethereum.request` and, for `eth_sendTransaction`, replaces `to` with `ATTACKER_ADDRESS` (a testnet address we control). Generic and visible: without the extension, the wallet pops up with the attacker's address. That's the "transaction swapped before signing" pattern from Bybit.
+A small self-contained IIFE that wraps `request` on `window.ethereum` and on every EIP-6963
+provider (it listens for `eip6963:announceProvider` and asks providers to announce). For
+`eth_sendTransaction` it replaces `to` with the attacker address — a [Hoodi](https://github.com/eth-clients/hoodi)
+address the team controls (`0x24080c83E2cbD50507ec5fE8480DDa14227f6a90`, public, no key in the
+repo). Without the extension the wallet pops up with the attacker's address: the "transaction
+swapped before signing" pattern from Bybit.
+
+**The guard (why this is safe to ship in the repo).** The payload rewrites `to` only when BOTH
+hold: the page origin equals `config.origin` (`http://localhost:8080`) AND the wallet reports
+chain `config.chainId` (560048 = Hoodi, which it reads with `eth_chainId` before deciding).
+On any other site or network — and for any method other than `eth_sendTransaction` — every call
+passes through untouched. So the committed payload is inert against real Lido and real mainnet;
+it only bites the local demo. Each rewrite logs one line: `[unforged demo payload] to <orig> -> <attacker>`.
+**In the demo we always REJECT the transaction in the wallet; we never confirm it.**
+
+**Generating it.** The guard values live in [`demo/config.json`](../demo/config.json) and are
+baked into [`demo/attacker/payload.template.js`](../demo/attacker/payload.template.js) at
+generation time (no runtime fetch). Regenerate everything with:
+
+```
+node demo/tools/make-attacks.mjs /_next/static/chunks/framework-b338f11e54b60304.js
+```
+
+Pass the JS chunk to tamper — pick it from the browser's network tab on the stake page, one
+that loads before Stake is clicked. The tool writes `demo/attacker/evil.js` (the payload),
+`demo/tampered/<chunk>` (genuine bytes + payload), and `demo/clone/` (a copy of the site with
+that chunk replaced), and prints the sha256 of the genuine and tampered chunk. It is
+deterministic: run it twice, get the same bytes. It refuses if `demo/site` is empty or the
+chunk doesn't exist, and validates the attacker address with viem.
 
 ## Demo script (3 minutes)
 
