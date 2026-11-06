@@ -43,7 +43,7 @@ program
   .command("mirror-check")
   .description("Fetch a mirror's files and compare them with a manifest. Exits 3 unless all match")
   .argument("<manifest>", "path to manifest.json")
-  .requiredOption("--gateway <url>", 'mirror base URL: https, ending in "/"')
+  .requiredOption("--gateway <url>", 'mirror base URL: http or https, ending in "/"')
   .requiredOption("--ref <name>", "the build's folder on the gateway")
   .action(async (manifest: string, options: { gateway: string; ref: string }) => {
     const report = await checkMirror(readManifest(manifest), options.gateway, options.ref);
@@ -57,7 +57,7 @@ program
   .argument("<attestation>", "path to attestation.json")
   .argument("<manifest>", "path to manifest.json")
   .option("--mirror-ref <name>", "record this mirror in the attestation, after checking it byte for byte (needs --gateway)")
-  .option("--gateway <url>", 'mirror base URL: https, ending in "/" (needs --mirror-ref)')
+  .option("--gateway <url>", 'mirror base URL: http or https, ending in "/" (needs --mirror-ref)')
   .action(async (attestation: string, manifest: string, options: { mirrorRef?: string; gateway?: string }) => {
     const result = await runPublish(attestation, manifest, options);
     console.log(result.created ? "published attestation" : "already published");

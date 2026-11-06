@@ -14,8 +14,24 @@ describe("gatewayUrl", () => {
     expect(gatewayUrl(GATEWAY, "a", path)).toBe(`${GATEWAY}a${path}`);
   });
 
+  it("accepts a plain http gateway, because the manifest hashes provide integrity", () => {
+    expect(gatewayUrl("http://mirror.example/", "a", "/index.html")).toBe("http://mirror.example/a/index.html");
+  });
+
+  it("applies the same checks to an http gateway", () => {
+    expect(() => gatewayUrl("http://user:pass@mirror.example/", "a", "/index.html")).toThrow(/credentials/);
+    expect(() => gatewayUrl("http://mirror.example/base", "a", "/index.html")).toThrow(/must end in/);
+  });
+
   it.each([
-    ["http", "http://mirror.example/"],
+    ["ftp", "ftp://mirror.example/"],
+    ["file", "file:///srv/mirror/"],
+    ["javascript", "javascript:alert(1)//"],
+  ])("refuses the %s protocol", (_, gateway) => {
+    expect(() => gatewayUrl(gateway, "a", "/index.html")).toThrow(/must be http or https/);
+  });
+
+  it.each([
     ["no trailing slash", "https://mirror.example/base"],
     ["not a URL", "mirror/"],
     ["empty", ""],

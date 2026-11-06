@@ -39,7 +39,7 @@ For every request whose **tab top-level origin** is in a policy:
   - Likewise, a 0-byte body from a request whose filter errored or was interrupted is blocked but never recorded as `hash-mismatch`: an empty body there means the download failed, not that the server sent an empty file. A complete empty response is checked like any other. The pure rule is `countsAsEvidence` in `navigation.ts`.
 - Never forward partial data before the decision.
 
-**Recovery origin:** `swarmRef` is a mirror reference (any static host; verified byte-for-byte), field name kept for compatibility. Requests to `policy.recovery.gateway + swarmRef + "/..."`, which is `gatewayUrl(gateway, ref, path)`, are treated as files of that release, with the path being the part after the ref. They are verified the same way, so an untrusted gateway can't tamper.
+**Recovery origin:** `swarmRef` is a mirror reference (any static host; verified byte-for-byte), field name kept for compatibility. Requests to `policy.recovery.gateway + swarmRef + "/..."`, which is `gatewayUrl(gateway, ref, path)`, are treated as files of that release, with the path being the part after the ref. They are verified the same way, so an untrusted gateway can't tamper. The mirror may be plain HTTP: every byte is verified against the attested manifest, so transport security adds privacy, not integrity.
 
 **Per-tab state** (in memory, mirrored to `storage.session`): `TabState` from `formats.md` §6. Also keep the first 200 KB of each blocked script body (in memory only) for the diff panel. Reset on top-level navigation.
 

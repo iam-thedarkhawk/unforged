@@ -140,8 +140,21 @@ describe("checkMirror", () => {
     expect(report.problems).toEqual([{ path: "(manifest)", problem: "lists no files" }]);
   });
 
+  it("checks a plain http mirror by its hashes: a match passes, tampered bytes fail", async () => {
+    const manifest = manifestOf({ "/a.js": "a()" });
+    const serving = (body: string) => vi.fn(async (_: string | URL | Request) => new Response(body));
+
+    const fetch = serving("a()");
+    expect(await checkMirror(manifest, "http://mirror.example/", REF, { fetch })).toEqual({ matched: 1, total: 1, problems: [] });
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(`http://mirror.example/${REF}/a.js`);
+
+    const tampered = await checkMirror(manifest, "http://mirror.example/", REF, { fetch: serving("evil()") });
+    expect(tampered.matched).toBe(0);
+    expect(tampered.problems).toHaveLength(1);
+  });
+
   it.each([
-    ["an invalid gateway", "http://mirror.example/", REF],
+    ["an invalid gateway", "ftp://mirror.example/", REF],
     ["an invalid ref", GATEWAY, "../up"],
     ['the reserved ref "none", which reads back as no mirror', GATEWAY, "none"],
     ["a ref too long for an Arkiv string attribute", GATEWAY, "a".repeat(129)],
