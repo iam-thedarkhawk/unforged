@@ -102,7 +102,7 @@ interface Policy {
   threshold: number;                 // k
   acceptLatest: number;              // accept only the newest m attested releases (downgrade protection)
   thirdParty: Record<string /*origin*/, Record<string /*path*/, string /*sha256*/>>; // pinned external scripts; anything else is blocked
-  recovery: { gateway: string };     // mirror base URL: https, ending in "/", e.g. "https://intelligent-ears.github.io/unforged-mirror/"
+  recovery: { gateway: string };     // mirror base URL: http or https, ending in "/", e.g. "https://intelligent-ears.github.io/unforged-mirror/"
   configPins?: Record<string /*served path*/, string /*sha256*/>; // the only way a config file (§5) is accepted
 }
 ```
