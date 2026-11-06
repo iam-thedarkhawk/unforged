@@ -64,7 +64,7 @@ Publish the attestation with its ref the first time: entities are readonly, so o
 
 ## GitHub Action (`action/action.yml`, composite)
 
-Inputs: `recipe` (path), `arkiv-rpc` (optional), `mirror-ref`, `gateway` (optional). Secret: `BUILDER_PRIVATE_KEY`. Steps: setup-node with `recipe.node` → `unforged build` → `unforged attest` → `unforged publish`. Outputs `manifest-root`, `entity-key`, `mirror-ref`.
+Inputs: `recipe` (path), `expected-root` (optional: stop before signing unless the build gets this root), `mirror-ref` and `gateway` (optional, together), `builder-private-key` and `arkiv-access-key`. A composite action can't read `secrets`, so the calling workflow (`.github/workflows/builder.yml`) passes the `BUILDER_PRIVATE_KEY` and `ARKIV_ACCESS_KEY` secrets as those two inputs, and they reach only the attest and publish steps. Steps: setup-node with `recipe.node` → `unforged build` → compare with `expected-root` → `unforged attest` → `unforged publish`, then a job summary and the build's records as an artifact. Outputs `manifest-root`, `entity-key`, `mirror-ref`. The key must be 64 hex characters, with or without `0x`; a key exported from MetaMask works as is.
 
 Independence rule (README): builders run this Action in **their own** GitHub organisations with their own keys. The dapp team's own CI produces at most a vendor attestation, never an independent one.
 

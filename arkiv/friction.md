@@ -1,6 +1,11 @@
 # Arkiv friction log
 
-What we hit building Unforged's registry on Arkiv. Migrated from SDK 0.8.1 on Tiramisu to SDK 1.0.1 on Rabdi. Everything below comes from the SDK 1.0.1 source and Arkiv's skills and docs, unless marked otherwise. **Not yet confirmed by a live run.**
+What we hit building Unforged's registry on Arkiv. Migrated from SDK 0.8.1 on Tiramisu to SDK 1.0.1 on Rabdi. The tables below come from the SDK 1.0.1 source and Arkiv's skills and docs. Our live runs on Rabdi then worked with the choices in them: one signed policy and two attestations written, and the extension reading them keyless. What we hit live is in the next section.
+
+## What we hit on the live network
+
+- **The faucet only funds the wallet you connect.** Our builder keys are CLI and CI keys, not browser wallets. Pasting a builder's address into the faucet gave "invalid address", so we ended up creating builder keys in a browser wallet just to fund them, which is the opposite of what you want for a CI signing key. *Expected:* send test GLM to any address, with a captcha or a rate limit per connected wallet. *To reproduce:* connect wallet A at hub.arkiv.network/faucet and try to fund address B.
+- **The GitHub Actions secret path worked first time.** The access key as a repository secret, passed to the CLI as `ARKIV_ACCESS_KEY`, published from a fresh runner with no other setup. Setting the signing-key secret correctly cost us more time than anything on Arkiv's side.
 
 ## The network change
 
