@@ -1,13 +1,13 @@
 # Unforged
 
-A Firefox extension that blocks a dapp's code unless independent builders rebuilt it from the public source and got the same bytes. Builders publish signed attestations to Arkiv (Rabdi testnet); the verified build is mirrored on Swarm.
+A Firefox extension that blocks a dapp's code unless independent builders rebuilt it from the public source and got the same bytes. Builders publish signed attestations to Arkiv (Rabdi testnet); the verified build is mirrored on a static host as a recovery copy.
 
 Read only what your task names. Specs: `docs/architecture.md` (map), `docs/formats.md` (contract), `docs/extension.md`, `docs/cli-registry.md`, `docs/demo.md`, `docs/build-plan.md`.
 
 ## Layout
 - `packages/core`: pure TS (no I/O, no network). Formats, canonical JSON, sha256, attestation verify, policy evaluation.
-- `packages/registry`: Arkiv + Swarm I/O.
-- `apps/cli`: `unforged build|attest|publish|policy|verify`.
+- `packages/registry`: Arkiv I/O and mirror URLs.
+- `apps/cli`: `unforged build|attest|mirror-check|publish|policy`.
 - `apps/extension`: Firefox MV3 (background: sync + enforcement; UI: popup, blocked page).
 - `action/`, `recipes/`, `demo/`, `study/`.
 

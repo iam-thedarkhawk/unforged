@@ -1,7 +1,5 @@
 # Architecture
 
-Working codename: `unforged`. Rename everywhere when the project name is chosen.
-
 ## What we are building
 
 A browser extension that refuses to run a dapp's code unless independent builders rebuilt it from the public source and got the same bytes. Rebuilders publish signed attestations to Arkiv, and the verified build is mirrored on a static host as a recovery copy.
@@ -15,7 +13,7 @@ A browser extension that refuses to run a dapp's code unless independent builder
      │  manifest + signed attestation │
      └──────────────┬─────────────────┘
                     ▼
-          Arkiv (Tiramisu testnet)  ◄── policy entity (curator)
+          Arkiv (Rabdi testnet)  ◄── signed policy entity (curator)
                     │ bulk sync (no per-visit lookups)
                     ▼
  user's Firefox ── extension ── intercepts every response from a supported origin
@@ -64,9 +62,8 @@ The extension ships with one hardcoded **curator address**. The curator publishe
 | Sponsor | Where | Requirement it satisfies |
 |---|---|---|
 | EF CROPS | whole product; README "CROPS" section | lead property: Secure, structural (works without the dapp team) |
-| Arkiv Mirror | `packages/registry` writes, extension reads | re-runnable import (`unforged publish`), user-visible read (badge), schema + friction docs |
-| ENSv2 (optional) | policy mirrored in ENS text records | only if M14 is reached |
+| Arkiv: Build on Arkiv (from scratch) | `packages/registry` writes (CLI, GitHub Action), extension reads keyless | app data lives in Arkiv entities with owners and expiry; a user-visible feature reads it (popup, blocking, recovery); `/arkiv/*.md` docs |
 
 ## Out of scope for the hackathon
 
-Chrome enforcement (stretch: detect-and-warn), wallet integrations, Sigstore keyless signing (we use Ethereum keys, so the builder's Arkiv creator address is its signing identity), production key management.
+Chrome enforcement (stretch: detect-and-warn), ENS policy mirroring, wallet integrations, Sigstore keyless signing (we use Ethereum keys, so the builder's Arkiv creator address is its signing identity), production key management.
