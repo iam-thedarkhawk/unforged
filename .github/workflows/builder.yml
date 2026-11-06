@@ -1,0 +1,50 @@
+name: Independent builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      recipe:
+        description: Path to the recipe YAML
+        type: string
+        required: true
+        default: recipes/lido-staking-widget@0.161.0.yaml
+      expected-root:
+        description: Fail before attesting unless the build prints this manifest root
+        type: string
+        required: false
+      mirror-ref:
+        description: Mirror folder to check and record. Needs gateway
+        type: string
+        required: false
+      gateway:
+        description: Mirror base URL, ending in "/". Needs mirror-ref
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      manifest-root: ${{ steps.builder.outputs.manifest-root }}
+      entity-key: ${{ steps.builder.outputs.entity-key }}
+      mirror-ref: ${{ steps.builder.outputs.mirror-ref }}
+    steps:
+      - name: Check out unforged
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build, attest and publish
+        id: builder
+        uses: ./action
+        with:
+          recipe: ${{ inputs.recipe }}
+          expected-root: ${{ inputs.expected-root }}
+          mirror-ref: ${{ inputs.mirror-ref }}
+          gateway: ${{ inputs.gateway }}
+          builder-private-key: ${{ secrets.BUILDER_PRIVATE_KEY }}
+          arkiv-access-key: ${{ secrets.ARKIV_ACCESS_KEY }}
