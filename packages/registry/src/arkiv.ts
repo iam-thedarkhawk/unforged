@@ -10,7 +10,17 @@ import {
 import { rabdi } from "@arkiv-network/sdk/chains";
 import { asc, eq, gt } from "@arkiv-network/sdk/query";
 import { bytes, defineSchema, key, str, u64 } from "@arkiv-network/sdk/schema";
-import { type AttestationEntry, canonicalJSON, type Hex, type Manifest, type Policy, type SignedAttestation } from "@unforged/core";
+import {
+  type AttestationEntry,
+  canonicalJSON,
+  type Hex,
+  type Manifest,
+  type Policy,
+  sameAddress,
+  type SignedAttestation,
+  type SignedPolicy,
+  verifyPolicy,
+} from "@unforged/core";
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from "fflate";
 import { type Account, hexToBytes, http, HttpRequestError } from "viem";
 
@@ -145,24 +155,33 @@ export async function publishAttestation(
   return send(client, (c, tx) => c.createEntity(AttestationSchema, values, CREATE_OPTIONS, tx), prepare);
 }
 
-export async function publishPolicy(client: WriteClient, policy: Policy, version: number, prepare?: Prepare): Promise<Published> {
+/**
+ * Publishes a curator-signed policy (formats.md §4). The caller signs; this only stores. The
+ * version attribute is the signed version, so the two can't disagree.
+ */
+export async function publishPolicy(client: WriteClient, signed: SignedPolicy, prepare?: Prepare): Promise<Published> {
   const values = {
     project: PROJECT,
     entity_type: "policy",
     content_type: CONTENT_TYPE,
-    dapp: policy.dapp,
-    version: u64(BigInt(version)),
-    payload: encodeChecked(policy),
+    dapp: signed.policy.dapp,
+    version: u64(BigInt(signed.version)),
+    payload: encodeChecked({ policy: signed.policy, version: signed.version, signature: signed.signature }),
   };
   return send(client, (c, tx) => c.createEntity(PolicySchema, values, CREATE_OPTIONS, tx), prepare);
 }
 
-/** Every readonly policy this curator published, for all dapps, highest version first. */
+/**
+ * Every readonly policy this curator created and signed, for all dapps, highest version first.
+ * Arkiv is untrusted storage: a row counts only if its $creator is the curator, the payload's
+ * signature over { policy, version } recovers to the curator, and that signed version is the
+ * entity's version attribute. Unsigned, mis-signed, relabelled or malformed rows are dropped.
+ */
 export async function fetchPolicies(source: ReadSource, curator: Hex): Promise<{ version: number; policy: Policy }[]> {
   const client = readClientFor(source);
   const rows = await allRows((after) => {
     const query = client
-      .select({ $key: true, $creationFlags: true, version: true, payload: true })
+      .select({ $key: true, $creator: true, $creationFlags: true, version: true, payload: true })
       .where([eq("project", PROJECT), eq("entity_type", "policy")])
       .createdBy(curator)
       .orderBy(asc("$key"))
@@ -173,10 +192,12 @@ export async function fetchPolicies(source: ReadSource, curator: Hex): Promise<{
 
   const policies: { version: number; policy: Policy }[] = [];
   for (const row of rows) {
-    const policy = tryDecode<Policy>(row.payload);
-    if (row.$creationFlags.readonly && policy !== undefined && row.version?.type === "u64") {
-      policies.push({ version: Number(row.version.value), policy });
-    }
+    if (!row.$creationFlags.readonly || row.version?.type !== "u64") continue;
+    if (typeof row.$creator !== "string" || !sameAddress(row.$creator, curator)) continue;
+    const signed = tryDecode<SignedPolicy>(row.payload);
+    if (signed === undefined || !(await verifyPolicy(signed, curator))) continue;
+    if (BigInt(signed.version) !== row.version.value) continue; // verifyPolicy checked it is a safe integer
+    policies.push({ version: signed.version, policy: signed.policy });
   }
   return policies.sort((a, b) => b.version - a.version);
 }
