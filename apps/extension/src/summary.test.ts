@@ -13,13 +13,13 @@ describe("snapshotSummary", () => {
         policyVersion: 0,
         buildersTotal: 3,
         threshold: 2,
-        gateway: "TODO",
+        gateway: "http://intelears.me/unforged-mirror/",
         releases: [
           {
             release: "0.161.0",
             commit: "e256fd6db9f713433b5b95bcf2d2fd833131a547",
             builders: snapshotJson.dapps["lido-staking-widget"].releases[0]!.builders,
-            swarmRefs: [],
+            swarmRefs: ["lido-0.161.0"],
           },
         ],
       },

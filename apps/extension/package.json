@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@types/firefox-webext-browser": "^143.0.1",
+    "@types/js-beautify": "^1.14.3",
     "@types/node": "^26.6.6",
     "typescript": "^7.0.2",
     "viem": "^2.57.16",
@@ -19,6 +20,8 @@
   },
   "dependencies": {
     "@unforged/core": "workspace:*",
-    "@unforged/registry": "workspace:*"
+    "@unforged/registry": "workspace:*",
+    "diff": "^9.0.0",
+    "js-beautify": "^2.0.3"
   }
 }

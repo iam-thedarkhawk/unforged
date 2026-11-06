@@ -13,6 +13,9 @@
   --grey: #70707a;
   --button-bg: #e9e9ee;
   --on-red: #ffffff;
+  --diff-added-bg: #fbdcda;
+  --diff-added-text: #7c120c;
+  --diff-removed-bg: #e4e4ea;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,6 +31,9 @@
     --red: #8f1d17;
     --grey: #9a9aa5;
     --button-bg: #2f2f37;
+    --diff-added-bg: #5a1a16;
+    --diff-added-text: #ffdad6;
+    --diff-removed-bg: #33333b;
   }
 }
 
@@ -218,6 +224,52 @@ code {
   gap: 2px 16px;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* Diff panel */
+.diff-summary {
+  margin-block: 8px 6px;
+  font-weight: 600;
+}
+
+.diff-note {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.diff-lines {
+  max-height: 60vh;
+  margin: 0;
+  padding: 6px 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font: 12px/1.45 ui-monospace, monospace;
+}
+
+.diff-line {
+  display: block;
+  min-height: 1.45em;
+  padding-inline: 10px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.diff-added {
+  background: var(--diff-added-bg);
+  color: var(--diff-added-text);
+  font-weight: 600;
+}
+
+.diff-removed {
+  background: var(--diff-removed-bg);
+}
+
+.diff-context,
+.diff-hunk,
+.diff-header {
+  color: var(--muted);
 }
 
 .actions {

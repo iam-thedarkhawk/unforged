@@ -7,6 +7,7 @@ import { decide, newTab, type TabRecord } from "./decide.js";
 import { countsAsEvidence, keepsTabState, showsBlockedPage } from "./navigation.js";
 import { pathIn, siteFor, verifiedCopyUrl, type Site } from "./site.js";
 import { currentSnapshot, ready, scheduleSync, summary, syncNow } from "./snapshots.js";
+import { blockedBodyReply, verifiedFile, type FileReply } from "./verified.js";
 
 let snapshotLoaded = false;
 void ready.then(() => {
@@ -19,8 +20,7 @@ function siteAt(url: string | undefined): Site | undefined {
   return snapshot ? siteFor(snapshot, url) : undefined;
 }
 
-const BLOCKED_BODY_LIMIT = 200 * 1024;
-const SCRIPT_TYPES = new Set(["script", "worker", "xmlhttprequest"]);
+const DIFFABLE_TYPES = new Set(["main_frame", "sub_frame", "script", "stylesheet", "worker", "xmlhttprequest"]);
 const BLOCKED_PAGE = browser.runtime.getURL("blocked.html");
 
 interface Tab {
@@ -28,7 +28,7 @@ interface Tab {
   site: Site | undefined; // the dapp site of the top-level document, fixed for the page load
   path: string; // that document's path inside the site, for "Open verified copy"
   record: TabRecord;
-  blockedBodies: Map<string, string>; // url -> first 200 KB of a blocked script, memory only
+  blockedBodies: Map<string, FileReply>; // url -> a blocked file for the diff panel, memory only
   documentPending: boolean; // a policy document is loading and hasn't committed yet
   blockedPageShown: boolean; // this page load already went to the blocked page
 }
@@ -96,9 +96,7 @@ function emptyBodyExpected(body: Uint8Array, blocked: Blocked | undefined): bool
 }
 
 function keepBlockedBody(tab: Tab, details: browser.webRequest._OnBeforeRequestDetails, body: Uint8Array): void {
-  if (!SCRIPT_TYPES.has(details.type)) return;
-  const text = new TextDecoder().decode(body.subarray(0, BLOCKED_BODY_LIMIT));
-  tab.blockedBodies.set(details.url, text);
+  if (DIFFABLE_TYPES.has(details.type)) tab.blockedBodies.set(details.url, blockedBodyReply(body));
 }
 
 /**
@@ -239,6 +237,7 @@ type Message =
   | { type: "getTabState"; tabId: number }
   | { type: "getSnapshotSummary" }
   | { type: "getBlockedBody"; tabId: number; url: string }
+  | { type: "getVerifiedFile"; tabId: number; url: string }
   | { type: "openVerifiedCopy"; tabId: number }
   | { type: "syncNow" };
 
@@ -250,9 +249,17 @@ async function getTabState(tabId: number): Promise<TabState> {
   return stored ?? newTab().state;
 }
 
-function getBlockedBody(tabId: number, url: string): { body: string } | { error: string } {
-  const body = tabs.get(tabId)?.blockedBodies.get(url);
-  return body === undefined ? { error: "no blocked body kept for this file" } : { body };
+function getBlockedBody(tabId: number, url: string): FileReply {
+  return tabs.get(tabId)?.blockedBodies.get(url) ?? { error: "no blocked body kept for this file" };
+}
+
+/** Only ever runs for a page that is already showing a block, never because a site was visited. */
+async function getVerifiedFile(tabId: number, url: string): Promise<FileReply> {
+  await ready;
+  const snapshot = currentSnapshot();
+  const tab = tabs.get(tabId);
+  if (!snapshot || !tab) return { error: "nothing is known about this tab" };
+  return verifiedFile(snapshot, { site: tab.site, lock: tab.record.lock }, url);
 }
 
 /** Sends the tab to the mirrored copy of its release (or the newest mirrored one), at the same path. */
@@ -276,6 +283,8 @@ function onMessage(message: Message, sender: browser.runtime.MessageSender): Pro
       return ready.then(summary);
     case "getBlockedBody":
       return Promise.resolve(getBlockedBody(message.tabId, message.url));
+    case "getVerifiedFile":
+      return getVerifiedFile(message.tabId, message.url).catch((error: unknown) => ({ error: String(error) }));
     case "openVerifiedCopy":
       return openVerifiedCopy(message.tabId).catch((error: unknown) => ({ error: String(error) }));
     case "syncNow":

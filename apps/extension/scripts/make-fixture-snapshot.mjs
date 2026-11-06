@@ -37,7 +37,7 @@ const policy = {
   threshold: 2,
   acceptLatest: 3,
   thirdParty: {},
-  recovery: { gateway: "TODO" },
+  recovery: { gateway: "http://intelears.me/unforged-mirror/" },
   configPins: { "/runtime/window-env.js": windowEnv },
 };
 
@@ -49,7 +49,7 @@ const release = {
   manifest,
   builders: BUILDERS.slice(0, 2),
   builtAt: "2026-11-01T00:00:00Z",
-  swarmRefs: [],
+  swarmRefs: ["lido-0.161.0"],
 };
 
 const snapshot = {

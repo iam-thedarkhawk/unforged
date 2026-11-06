@@ -4,6 +4,7 @@
 
 - `manifest_version: 3`, background `scripts` (Firefox event page), `browser_specific_settings.gecko.id` set, `strict_min_version: "128.0"`.
 - Permissions (the same set WEBCAT uses for this technique): `webRequest`, `webRequestBlocking`, `webRequestFilterResponse`, `storage`, `alarms`, `tabs`, `browsingData`. `host_permissions: ["<all_urls>"]`.
+- `content_security_policy.extension_pages: "script-src 'self'"`. Firefox's MV3 default also has `upgrade-insecure-requests`, which rewrites a fetch of a plain-HTTP mirror to `https://` and fails it. Mirror bytes are verified by hash, so that upgrade adds nothing to integrity.
 - Bundle with Vite or esbuild into `dist/`. Load in Firefox via `about:debugging` → "Load Temporary Add-on". The `web-ext` CLI is optional.
 
 ## Background: sync (owner: Arya, uses `packages/registry`)
@@ -41,7 +42,7 @@ For every request whose **tab top-level origin** is in a policy:
 
 **Recovery origin:** `swarmRef` is a mirror reference (any static host; verified byte-for-byte), field name kept for compatibility. Requests to `policy.recovery.gateway + swarmRef + "/..."`, which is `gatewayUrl(gateway, ref, path)`, are treated as files of that release, with the path being the part after the ref. They are verified the same way, so an untrusted gateway can't tamper. The mirror may be plain HTTP: every byte is verified against the attested manifest, so transport security adds privacy, not integrity.
 
-**Per-tab state** (in memory, mirrored to `storage.session`): `TabState` from `formats.md` §6. Also keep the first 200 KB of each blocked script body (in memory only) for the diff panel. Reset on top-level navigation.
+**Per-tab state** (in memory, mirrored to `storage.session`): `TabState` from `formats.md` §6. Also keep each blocked document, stylesheet or script body of up to 200 KB (in memory only) for the diff panel. A larger one is not kept: half a file would diff as false removals, so `getBlockedBody` answers that it is too large to compare. Reset on top-level navigation.
 
 **Leaving a policy origin:** `webRequest` doesn't fire for `about:` and some other pages, so `tabs.onUpdated` (`changeInfo.url`) also watches the tab. When the URL's origin is not a policy origin, the background resets the record, clears the badge text and removes `tab:<id>` from `storage.session`. That covers `about:`, `file:`, other extension pages and any http(s) origin not in the snapshot. Our own `blocked.html` keeps the state, because it explains that verdict. The reset keeps the new page's origin, because that page's frames classify their scripts against it.
 
@@ -54,6 +55,7 @@ For every request whose **tab top-level origin** is in a policy:
 | `{ type: "getTabState", tabId }` | `TabState` |
 | `{ type: "getSnapshotSummary" }` | `SnapshotSummary` |
 | `{ type: "getBlockedBody", tabId, url }` | `{ body: string }` or `{ error: string }` |
+| `{ type: "getVerifiedFile", tabId, url }` | `{ body: string }` only if the mirror's bytes (500 KB at most) hash to the manifest's value for that file in the tab's locked release (or the newest accepted one), otherwise `{ error: string }` |
 | `{ type: "openVerifiedCopy", tabId }` | navigates the tab to `gateway + swarmRef + path` for the locked (or newest) release |
 
 ## UI (owner: Yuvraaj)
@@ -65,7 +67,7 @@ All UI reads state through the messages above (`browser.runtime.sendMessage`). T
 | Toolbar badge (`browser.action`) | 🟢 "OK" / 🔴 "!" / grey. Colour per verdict level |
 | Popup | dapp, release, commit (short), builders who attested (k of n), files checked, accepted config values (e.g. RPC hosts), last sync time. On a `mismatch`: the blocked files and a "See details" button that opens `blocked.html?tab=<id>` in that tab (hidden when the tab is already there) |
 | `blocked.html` | Big red header "Blocked: this dapp's code doesn't match its public source". List of blocked files with reason. **Diff panel** for the first blocked script. Buttons: "Open verified copy" (the mirror) and "Go back" |
-| Diff panel | Get the blocked body with `getBlockedBody`. Fetch the verified file from the mirror by path (gateway and ref from `getSnapshotSummary`), check its hash against the manifest, pretty-print both with `js-beautify`, show a unified diff (`diff` npm package, `createTwoFilesPatch`). Highlight added lines. Cap at 400 lines |
+| Diff panel | "What changed", for the first blocked `hash-mismatch` script, stylesheet or page. Get both sides with `getBlockedBody` and `getVerifiedFile` (the background fetches and verifies the mirror copy; the UI never does), pretty-print both with `js-beautify`, show a unified diff (`diff` npm package, `createTwoFilesPatch`) as text nodes only. Added lines red with "+", removed with "−", context muted, and "N lines added, M removed". Cap at 400 lines. If a side is unavailable, say why and keep the rest of the page |
 
 Blocked files are labelled by path (a third-party script keeps its host). The dapp's `/` and `/index.html` read `/ (start page)` and `/index.html (start page)`; other paths are shown as they are.
 
