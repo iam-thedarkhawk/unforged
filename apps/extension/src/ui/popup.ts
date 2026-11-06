@@ -3,22 +3,25 @@ import type { TabState, Verdict } from "@unforged/core";
 import type { SyncSummary } from "../summary.js";
 import { byId, detailList, el, showMockNotice } from "./dom.js";
 import {
+  awaitingBuilders,
   blockedFileLabel,
+  type BuilderWait,
   buildersCount,
   configValueText,
   dappOf,
-  reasonText,
+  fileReasonText,
   relativeTime,
   shortAddress,
   shortCommit,
   statusLabel,
+  WAITING_STATUS,
 } from "./format.js";
 import { isBlockedPage } from "../navigation.js";
 import { stateSource, type StateSource } from "./source.js";
 
 const BLOCKED_PAGE = browser.runtime.getURL("blocked.html");
 
-function statusLine(level: Verdict["level"] | "error", text: string): HTMLElement {
+function statusLine(level: Verdict["level"] | "error" | "waiting", text: string): HTMLElement {
   const dot = el("span", `dot dot-${level}`);
   dot.setAttribute("aria-hidden", "true");
   return el("p", "status", dot, el("strong", "", text));
@@ -46,9 +49,9 @@ function stateDetails(state: TabState, summary: SyncSummary | undefined): HTMLEl
   ]);
 }
 
-function blockedFiles(state: TabState): HTMLElement {
+function blockedFiles(state: TabState, wait: BuilderWait | undefined): HTMLElement {
   const items = state.blocked.map((file) =>
-    el("li", "", el("code", "file-path", blockedFileLabel(file)), el("span", "file-reason", reasonText(file.reason))),
+    el("li", "", el("code", "file-path", blockedFileLabel(file)), el("span", "file-reason", fileReasonText(file, wait))),
   );
   return el("section", "", el("h2", "", "Blocked files"), el("ul", "file-list", ...items));
 }
@@ -127,8 +130,12 @@ async function render(source: StateSource, root: HTMLElement): Promise<void> {
   }
 
   const { value } = state;
-  root.replaceChildren(statusLine(value.verdict.level, statusLabel(value.verdict.level)), stateDetails(value, snapshot));
-  if (value.blocked.length > 0) root.append(blockedFiles(value));
+  const wait = value.verdict.level === "mismatch" ? awaitingBuilders(snapshot, dappOf(value)) : undefined;
+  const status = wait
+    ? statusLine("waiting", WAITING_STATUS)
+    : statusLine(value.verdict.level, statusLabel(value.verdict.level));
+  root.replaceChildren(status, stateDetails(value, snapshot));
+  if (value.blocked.length > 0) root.append(blockedFiles(value, wait));
   // Already on the blocked page, another copy would only add a history entry for Go back to trip on.
   if (value.verdict.level === "mismatch" && !isBlockedPage(tab?.url ?? "", BLOCKED_PAGE)) {
     root.append(seeDetailsButton(source, tab, root));

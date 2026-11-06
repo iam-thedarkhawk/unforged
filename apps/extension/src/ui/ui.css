@@ -148,7 +148,8 @@ code {
   background: var(--green);
 }
 
-.dot-vendor {
+.dot-vendor,
+.dot-waiting {
   background: var(--amber);
 }
 
@@ -197,6 +198,12 @@ code {
   margin-inline: auto;
   font-size: 28px;
   line-height: 1.25;
+}
+
+/* --bg on --amber keeps contrast in both colour schemes. */
+[data-state="waiting"] .blocked-header {
+  background: var(--amber);
+  color: var(--bg);
 }
 
 [data-state="clear"] .blocked-header {

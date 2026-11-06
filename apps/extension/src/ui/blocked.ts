@@ -5,13 +5,17 @@ import type { SyncSummary } from "../summary.js";
 import { showDiffPanel } from "./diff-panel.js";
 import { byId, el, showMockNotice } from "./dom.js";
 import {
+  awaitingBuilders,
   blockedFileLabel,
+  type BuilderWait,
   dappOf,
+  fileReasonText,
   parseTabId,
-  reasonText,
   shortHash,
   statusLabel,
   verifiedCopyAvailable,
+  WAITING_HEADING,
+  waitingExplanation,
 } from "./format.js";
 import { stateSource, type StateSource } from "./source.js";
 
@@ -26,21 +30,28 @@ function hashLine(label: string, hash: string | undefined): HTMLElement {
   return el("span", "hash", `${label} `, value);
 }
 
-function fileItem(file: Blocked): HTMLElement {
+function fileItem(file: Blocked, wait: BuilderWait | undefined): HTMLElement {
   return el(
     "li",
     "",
     el("code", "file-path", blockedFileLabel(file)),
-    el("span", "file-reason", reasonText(file.reason)),
+    el("span", "file-reason", fileReasonText(file, wait)),
     el("span", "hashes", hashLine("expected", file.expected), hashLine("actual", file.actual)),
   );
 }
 
-function showBlocked(state: TabState): void {
+function showBlocked(state: TabState, wait: BuilderWait | undefined): void {
   byId("files").replaceChildren(
     el("h2", "", state.blocked.length === 1 ? "Blocked file" : "Blocked files"),
-    el("ul", "file-list", ...state.blocked.map(fileItem)),
+    el("ul", "file-list", ...state.blocked.map((file) => fileItem(file, wait))),
   );
+}
+
+/** No release has reached the policy's builder threshold, so nothing could match; say that. */
+function showWaiting(wait: BuilderWait): void {
+  document.documentElement.dataset.state = "waiting";
+  byId("title").textContent = WAITING_HEADING;
+  byId("explanation").textContent = waitingExplanation(wait);
 }
 
 /** The background reports nothing blocked, so the page must not claim otherwise. */
@@ -96,8 +107,10 @@ async function load(source: StateSource, tabId: number | undefined): Promise<voi
     setUpCopyButton(source, tabId, false);
     return;
   }
-  if (state.value.verdict.level === "mismatch") showBlocked(state.value);
+  const wait = awaitingBuilders(snapshot, dappOf(state.value));
+  if (state.value.verdict.level === "mismatch") showBlocked(state.value, wait);
   else showNothingBlocked(state.value);
+  if (state.value.verdict.level === "mismatch" && wait) showWaiting(wait);
   setUpCopyButton(source, tabId, verifiedCopyAvailable(snapshot, dappOf(state.value)));
   if (state.value.verdict.level === "mismatch") await showDiffPanel(source, tabId, state.value.blocked);
 }

@@ -4,7 +4,9 @@ import {
   blockedFileLabel,
   buildersCount,
   configValueText,
+  awaitingBuilders,
   dappOf,
+  fileReasonText,
   parseMock,
   parseTabId,
   reasonText,
@@ -14,6 +16,9 @@ import {
   shortHash,
   statusLabel,
   verifiedCopyAvailable,
+  WAITING_HEADING,
+  WAITING_STATUS,
+  waitingExplanation,
 } from "./format.js";
 
 const HASH = "3793d238759876e77f287bcec730ea1ba1ef12ceb8a4c8fb1d64410ee5bdeaa7";
@@ -197,5 +202,50 @@ describe("verifiedCopyAvailable", () => {
   it("needs a recovery gateway", () => {
     expect(verifiedCopyAvailable(summary(["ref"], "TODO"), "lido")).toBe(false);
     expect(verifiedCopyAvailable(summary(["ref"], ""), "lido")).toBe(false);
+  });
+});
+
+describe("waiting for independent builders", () => {
+  const summary = (releases: SnapshotSummary["dapps"][number]["releases"]): SnapshotSummary => ({
+    syncedAt: null,
+    dapps: [{ dapp: "lido", policyVersion: 1, buildersTotal: 3, threshold: 2, gateway: "", releases }],
+  });
+  const release = { release: "1", commit: "abc", builders: ["0x1", "0x2"], swarmRefs: [] };
+  const url = "http://localhost:8080/app.js";
+
+  it("applies only to a known dapp with no accepted release", () => {
+    expect(awaitingBuilders(summary([]), "lido")).toEqual({ threshold: 2, total: 3 });
+    expect(awaitingBuilders(summary([release]), "lido")).toBeUndefined();
+    expect(awaitingBuilders(summary([]), "other")).toBeUndefined();
+    expect(awaitingBuilders(summary([]), undefined)).toBeUndefined();
+    expect(awaitingBuilders(undefined, "lido")).toBeUndefined();
+  });
+
+  it("says no release is reproduced yet instead of naming a different release", () => {
+    const wait = { threshold: 2, total: 3 };
+    const text = "No independently reproduced release yet (2 of 3 builders needed)";
+    expect(fileReasonText({ url, reason: "release-mixed", actual: HASH }, wait)).toBe(text);
+    expect(fileReasonText({ url: "http://localhost:8080/", reason: "unknown-file", actual: HASH }, wait)).toBe(text);
+  });
+
+  it("keeps the usual reason otherwise", () => {
+    const wait = { threshold: 2, total: 3 };
+    expect(fileReasonText({ url, reason: "release-mixed", actual: HASH }, undefined)).toBe("from a different release");
+    expect(fileReasonText({ url, reason: "release-mixed", expected: HASH, actual: HASH }, wait)).toBe(
+      "from a different release",
+    );
+    expect(fileReasonText({ url, reason: "third-party", actual: HASH }, wait)).toBe("external script not allowed");
+  });
+
+  it("labels the tab's status", () => {
+    expect(WAITING_STATUS).toBe("Waiting for independent builders");
+  });
+
+  it("explains the block on the blocked page with the policy's numbers", () => {
+    expect(WAITING_HEADING).toBe("Blocked: no independently reproduced release yet");
+    expect(waitingExplanation({ threshold: 2, total: 3 })).toBe(
+      "This dapp's policy needs 2 of 3 independent builders to reproduce a release from its public source. " +
+        "None has reached that yet, so Unforged won't run its code.",
+    );
   });
 });

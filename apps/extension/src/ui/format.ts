@@ -23,6 +23,41 @@ export function reasonText(reason: Blocked["reason"]): string {
   return REASONS[reason];
 }
 
+export const WAITING_STATUS = "Waiting for independent builders";
+export const WAITING_HEADING = "Blocked: no independently reproduced release yet";
+
+/** How many builders must agree, out of how many the policy names. */
+export interface BuilderWait {
+  threshold: number;
+  total: number;
+}
+
+/** The dapp has a policy in the snapshot, but no release has reached its builder threshold yet. */
+export function awaitingBuilders(summary: SnapshotSummary | undefined, dapp: string | undefined): BuilderWait | undefined {
+  const entry = summary?.dapps.find((d) => d.dapp === dapp);
+  if (!entry || entry.releases.length > 0) return undefined;
+  return { threshold: entry.threshold, total: entry.buildersTotal };
+}
+
+export function waitingExplanation({ threshold, total }: BuilderWait): string {
+  return (
+    `This dapp's policy needs ${threshold} of ${total} independent builders to reproduce a release from its public source. ` +
+    "None has reached that yet, so Unforged won't run its code."
+  );
+}
+
+/**
+ * A file's block reason. With no accepted release there is nothing to expect a file to match, so
+ * "from a different release" or "not part of the release" would mislead; say what is missing.
+ */
+export function fileReasonText(file: Blocked, wait: BuilderWait | undefined): string {
+  const releaseless = file.expected === undefined && (file.reason === "release-mixed" || file.reason === "unknown-file");
+  if (wait && releaseless) {
+    return `No independently reproduced release yet (${wait.threshold} of ${wait.total} builders needed)`;
+  }
+  return reasonText(file.reason);
+}
+
 export function statusLabel(level: Level): string {
   return STATUS[level];
 }
