@@ -33,7 +33,7 @@ findAttestation(source, creator, manifestRoot): Promise<{ entityKey, swarmRef } 
 fetchPolicies(source, curator): Promise<{ version: number; policy: Policy }[]> // highest version first
 fetchAttestations(source, builder, dapp, skipKeys?: Set<string>): Promise<{ entityKey, creator, attestation, manifest, swarmRef }[]>
   // lists keys + attributes first, then fetches payloads only for keys not in skipKeys (incremental sync)
-// Mirrors. gateway: https URL ending in "/". ref: [a-z0-9][a-z0-9.-]*. path: starts with "/".
+// Mirrors. gateway: http or https URL ending in "/". ref: [a-z0-9][a-z0-9.-]*. path: starts with "/".
 // Returns gateway + ref + path. Throws on anything that could leave the ref's folder.
 gatewayUrl(gateway, ref, path): string
 ```
@@ -54,7 +54,7 @@ SDK facts that save research time:
 
 ## Verified mirror
 
-A recovery copy of an attested build can live on any static host; we use GitHub Pages. `swarm_ref` and `swarmRefs` hold a mirror reference (any static host; verified byte-for-byte), field name kept for compatibility. It is a folder name on the policy's `recovery.gateway`, e.g. `https://intelligent-ears.github.io/unforged-mirror/`. The host is untrusted: the CLI won't attest a mirror that doesn't match, and the extension re-verifies every byte.
+A recovery copy of an attested build can live on any static host; we use GitHub Pages. `swarm_ref` and `swarmRefs` hold a mirror reference (any static host; verified byte-for-byte), field name kept for compatibility. It is a folder name on the policy's `recovery.gateway`, e.g. `https://intelligent-ears.github.io/unforged-mirror/`. The host is untrusted: the CLI won't attest a mirror that doesn't match, and the extension re-verifies every byte. The mirror may be plain HTTP: every byte is verified against the attested manifest, so transport security adds privacy, not integrity.
 
 1. `scripts/publish-mirror.sh <out-dir> <ref> <manifest.json>` verifies `out-dir` against the manifest and refuses on a changed, missing or unlisted file. It then commits the build to `<ref>/` on the `gh-pages` branch of `intelligent-ears/unforged-mirror`, with `<ref>/LICENSE` (from the source repo's pinned commit), `<ref>/SOURCE.md` and a root `.nojekyll`, so that Pages serves `_next/`. It never pushes: it prints the command for a human to run. It needs a built CLI. `UNFORGED_RECIPE`, `UNFORGED_MIRROR_DIR` and `UNFORGED_MIRROR_REMOTE` override the recipe (default `recipes/<dapp>@<release>.yaml`), clone location and remote.
 2. Once Pages has deployed: `unforged mirror-check manifest.json --gateway https://intelligent-ears.github.io/unforged-mirror/ --ref <ref>`.

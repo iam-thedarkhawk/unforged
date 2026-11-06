@@ -22,7 +22,7 @@ function assertGateway(gateway: string): void {
   } catch {
     throw invalid("not a URL");
   }
-  if (url.protocol !== "https:") throw invalid("must be https");
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw invalid("must be http or https");
   if (!gateway.endsWith("/")) throw invalid('must end in "/"');
   if (/[?#]/.test(gateway)) throw invalid("must not have a query or fragment");
   if (url.username !== "" || url.password !== "") throw invalid("must not have credentials");
